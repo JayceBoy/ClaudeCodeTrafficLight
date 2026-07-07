@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -57,6 +58,8 @@ namespace TrafficLight
             _lastIconIdx = 0;
 
             var menu = new ContextMenuStrip();
+            menu.Items.Add("关于", null, (_, _) => ShowAbout());
+            menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("退出", null, (_, _) => ExitApp());
             _trayIcon.ContextMenuStrip = menu;
 
@@ -96,6 +99,33 @@ namespace TrafficLight
             _tickTimer.Stop();
             _trayIcon.Visible = false;
             Application.Exit();
+        }
+
+        // --- about dialog ---
+
+        private static void ShowAbout()
+        {
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            string verStr = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
+
+            const string url = "https://github.com/JayceBoy/ClaudeCodeTrafficLight";
+
+            var openBtn = new TaskDialogButton("打开 GitHub");
+
+            var page = new TaskDialogPage
+            {
+                Caption = "关于",
+                Heading = "Claude Code TrafficLight",
+                Text = $"作者：飞翔的秋秋\n版本：{verStr}\n\n{url}",
+                Icon = TaskDialogIcon.Information,
+                Buttons = { openBtn, TaskDialogButton.OK },
+            };
+
+            if (TaskDialog.ShowDialog(page) == openBtn)
+            {
+                try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+                catch { }
+            }
         }
 
         private void OnDoubleClick(object? sender, MouseEventArgs e)
