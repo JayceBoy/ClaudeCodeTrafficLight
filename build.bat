@@ -3,19 +3,19 @@ chcp 65001 >nul
 cd /d "%~dp0"
 
 echo ============================================
-echo  TrafficLight 一键构建脚本
+echo  TrafficLight Build Script
 echo ============================================
 echo.
 
-:: 清理旧的构建文件
-echo [1/3] 清理旧构建文件...
+:: Clean old build artifacts
+echo [1/3] Cleaning old build files...
 if exist bin rmdir /s /q bin
 if exist obj rmdir /s /q obj
-echo      完成
+echo       Done
 echo.
 
-:: 构建
-echo [2/3] 构建发布包...
+:: Build
+echo [2/3] Publishing...
 dotnet publish -c Release -r win-x64 --self-contained true ^
   -p:PublishSingleFile=true ^
   -p:PublishReadyToRun=false ^
@@ -24,29 +24,29 @@ dotnet publish -c Release -r win-x64 --self-contained true ^
 
 if %ERRORLEVEL% neq 0 (
     echo.
-    echo [错误] 构建失败，请检查是否安装了 .NET 10 SDK
+    echo [ERROR] Build failed. Make sure .NET 10 SDK is installed.
     pause
     exit /b 1
 )
-echo      构建成功
+echo       Build successful
 echo.
 
-:: UPX 压缩（如果安装了 UPX）
-echo [3/3] 正在检查 UPX...
+:: UPX compression (if installed)
+echo [3/3] Checking UPX...
 where upx >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    echo      发现 UPX，正在压缩...
+    echo       UPX found, compressing...
     upx --best --force "bin\Release\net10.0-windows\win-x64\publish\TrafficLight.exe"
-    echo      压缩完成
+    echo       Compression done
 ) else (
-    echo      未安装 UPX，跳过压缩步骤
-    echo      如需压缩可安装: https://github.com/upx/upx/releases
+    echo       UPX not found, skipping compression
+    echo       Download: https://github.com/upx/upx/releases
 )
 
 echo.
 echo ============================================
-echo  构建完成！
-echo  产物: bin\Release\net10.0-windows\win-x64\publish\TrafficLight.exe
+echo  Build complete!
+echo  Output: bin\Release\net10.0-windows\win-x64\publish\TrafficLight.exe
 echo ============================================
 
 pause

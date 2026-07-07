@@ -32,7 +32,7 @@ namespace TrafficLight
         private readonly System.Windows.Forms.Timer _tickTimer = new();
         private readonly Icon[] _icons;             // static: idle(0), red(1), yellow(2), green(3)
         private bool _flashOn;                       // toggles for red flash
-        private HttpListener _httpListener;
+        private HttpListener? _httpListener;
         private bool _disposed;
 
         private string _currentStatus = "idle";
@@ -98,14 +98,14 @@ namespace TrafficLight
             Application.Exit();
         }
 
-        private void OnDoubleClick(object sender, MouseEventArgs e)
+        private void OnDoubleClick(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left) SetStatus("idle");
         }
 
         // --- 500 ms tick (UI thread) ---
 
-        private void OnTick(object sender, EventArgs e)
+        private void OnTick(object? sender, EventArgs e)
         {
             string status;
             lock (_statusLock)
