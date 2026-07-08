@@ -27,8 +27,6 @@ namespace TrafficLight
 
     sealed class TrafficLightContext : ApplicationContext
     {
-        private const int TimeoutSec = 60;
-
         private readonly NotifyIcon _trayIcon = new();
         private readonly System.Windows.Forms.Timer _tickTimer = new();
         private readonly Icon[] _icons;             // static: idle(0), red(1), yellow(2), green(3)
@@ -116,7 +114,7 @@ namespace TrafficLight
             {
                 Caption = "关于",
                 Heading = "Claude Code TrafficLight",
-                Text = $"作者：飞翔的秋秋\n版本：{verStr}\n\n{url}",
+                Text = $"作者：飞翔的秋秋\n版本：{verStr}",
                 Icon = TaskDialogIcon.Information,
                 Buttons = { openBtn, TaskDialogButton.OK },
             };
@@ -138,16 +136,24 @@ namespace TrafficLight
         private void OnTick(object? sender, EventArgs e)
         {
             string status;
+            DateTime lastUpdate;
             lock (_statusLock)
             {
-                if (_currentStatus != "idle" &&
-                    (DateTime.UtcNow - _lastUpdate).TotalSeconds >= TimeoutSec)
+                status = _currentStatus;
+                lastUpdate = _lastUpdate;
+            }
+
+            // Green (completed/done) auto‑idles after 30 s of no updates
+            if ((status is "completed" or "done") &&
+                (DateTime.UtcNow - lastUpdate).TotalSeconds >= 30)
+            {
+                lock (_statusLock)
                 {
                     _currentStatus = "idle";
                     _lastUpdate = DateTime.UtcNow;
-                    DebugLog("Timeout → idle");
                 }
-                status = _currentStatus;
+                DebugLog("Timeout (green 30s) → idle");
+                status = "idle";
             }
 
             int idx = status switch
