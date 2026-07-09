@@ -10,6 +10,7 @@
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <TrimMode>link</TrimMode>
     <_SuppressWinFormsTrimError>true</_SuppressWinFormsTrimError>
+    <ApplicationIcon>App.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
