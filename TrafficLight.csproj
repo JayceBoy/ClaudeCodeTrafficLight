@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="images\*.png" />
+    <EmbeddedResource Include="claude-settings\install-hooks.ps1" />
+    <EmbeddedResource Include="claude-settings\settings.json" />
   </ItemGroup>
 
 </Project>

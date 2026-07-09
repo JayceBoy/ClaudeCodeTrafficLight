@@ -47,7 +47,11 @@ bin\Release\net8.0-windows\win-x64\publish\TrafficLight.exe
 
 直接双击 `TrafficLight.exe` 即可。程序会在系统托盘显示一个灰色圆点。
 
-## 与 Claude Code 集成
+## 自动与 Claude Code 集成
+
+右键系统托盘图标，点击“启用ClaudeCode状态灯” -> "启用" 即可。
+
+## 手动与 Claude Code 集成
 
 本项目通过 **Claude Code 的 Hooks 机制** 自动推送状态更新。将以下配置添加到你的 `settings.json` 中：
 
@@ -164,7 +168,10 @@ TrafficLight/
 │   ├── red.png
 │   ├── yellow.png
 │   └── green.png
-├── settings.json           # Claude Code Hooks 配置（参考）
+├── claude-settings/     # Claude Code 集成配置与安装脚本
+│   ├── settings.json               # Hooks 配置（参考）
+│   ├── install-hooks.bat           # 安装脚本（CMD）
+│   └── install-hooks.ps1           # 安装脚本（PowerShell）
 ├── CLAUDE.md               # 项目说明（供 Claude Code 使用）
 └── README.md               # 本文件
 ```

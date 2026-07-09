@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace TrafficLight
@@ -57,6 +58,7 @@ namespace TrafficLight
 
             var menu = new ContextMenuStrip();
             menu.Items.Add("关于", null, (_, _) => ShowAbout());
+            menu.Items.Add("启用状态灯", null, async (_, _) => await InstallClaudeCodeHooks());
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("退出", null, (_, _) => ExitApp());
             _trayIcon.ContextMenuStrip = menu;
@@ -97,6 +99,135 @@ namespace TrafficLight
             _tickTimer.Stop();
             _trayIcon.Visible = false;
             Application.Exit();
+        }
+
+        // --- install Claude Code hooks (from embedded resource) ---
+
+        private async Task InstallClaudeCodeHooks()
+        {
+            // Extract embedded files to temp
+            string? scriptPath = ExtractToTemp("TrafficLight.claude_settings.install-hooks.ps1", "TrafficLight-install-hooks.ps1");
+            string? settingsPath = ExtractToTemp("TrafficLight.claude_settings.settings.json", "TrafficLight-settings.json");
+            if (scriptPath == null || settingsPath == null)
+            {
+                TaskDialog.ShowDialog(new TaskDialogPage
+                {
+                    Caption = "配置失败",
+                    Heading = "提取脚本失败",
+                    Text = "未能提取内置安装文件。\n请确认 TrafficLight 程序文件完整。",
+                    Icon = TaskDialogIcon.Error,
+                    Buttons = { TaskDialogButton.OK },
+                });
+                return;
+            }
+
+            // Confirm with user
+            var confirmBtn = new TaskDialogButton("启用");
+            var cancelBtn = TaskDialogButton.Cancel;
+            var confirmPage = new TaskDialogPage
+            {
+                Caption = "启用状态灯",
+                Text = "此操作将修改 Claude Code 全局配置，注册 TrafficLight 的状态推送 Hook。\n\n" +
+                       "启用后，Claude Code 在思考、执行、等待确认、完成等阶段\n" +
+                       "会自动向 TrafficLight 推送状态，托盘图标将实时反映运行状态。\n\n" +
+                       "注：会自动备份你现有的全局配置文件。\n\n" +
+                       "确认启用吗？",
+                Buttons = { confirmBtn, cancelBtn },
+            };
+
+            if (TaskDialog.ShowDialog(confirmPage) != confirmBtn) return;
+
+            // Run install-hooks.ps1 on background thread (keeps UI responsive)
+            var psi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-ExecutionPolicy Bypass -NoProfile -File \"{scriptPath}\" -Source \"{settingsPath}\" -NonInteractive",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            (string output, string error, int exitCode) result;
+            try
+            {
+                result = await Task.Run(() =>
+                {
+                    using var process = Process.Start(psi)
+                        ?? throw new InvalidOperationException("启动 powershell.exe 失败。");
+
+                    string outText = process.StandardOutput.ReadToEnd();
+                    string errText = process.StandardError.ReadToEnd();
+                    process.WaitForExit();
+                    return (outText, errText, process.ExitCode);
+                });
+            }
+            catch (Exception ex)
+            {
+                DebugLog($"Install hooks failed: {ex.Message}");
+                TaskDialog.ShowDialog(new TaskDialogPage
+                {
+                    Caption = "配置失败",
+                    Heading = "执行出错",
+                    Text = ex.Message,
+                    Icon = TaskDialogIcon.Error,
+                    Buttons = { TaskDialogButton.OK },
+                });
+                return;
+            }
+            finally
+            {
+                // Clean up temp files
+                try { if (scriptPath != null) File.Delete(scriptPath); } catch { }
+                try { if (settingsPath != null) File.Delete(settingsPath); } catch { }
+            }
+
+            var (output, error, exitCode) = result;
+
+            if (exitCode == 0)
+            {
+                TaskDialog.ShowDialog(new TaskDialogPage
+                {
+                    Caption = "配置结果",
+                    Heading = "安装成功",
+                    Text = "Claude Code 状态灯 Hook 已配置完成。",
+                    Icon = TaskDialogIcon.Information,
+                    Buttons = { TaskDialogButton.OK },
+                });
+            }
+            else
+            {
+                string failText = output;
+                if (!string.IsNullOrEmpty(error))
+                    failText += "\n" + error;
+
+                TaskDialog.ShowDialog(new TaskDialogPage
+                {
+                    Caption = "配置结果",
+                    Heading = "安装失败",
+                    Text = string.IsNullOrWhiteSpace(failText) ? "未知错误，请检查日志。" : failText,
+                    Icon = TaskDialogIcon.Error,
+                    Buttons = { TaskDialogButton.OK },
+                });
+            }
+        }
+
+        private static string? ExtractToTemp(string resourceName, string tempFileName)
+        {
+            try
+            {
+                using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
+                if (stream == null) return null;
+
+                string tempPath = Path.Combine(Path.GetTempPath(), tempFileName);
+                using var fileStream = File.Create(tempPath);
+                stream.CopyTo(fileStream);
+                return tempPath;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         // --- about dialog ---

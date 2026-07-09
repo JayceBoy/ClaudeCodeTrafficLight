@@ -46,7 +46,7 @@ A single-file Windows Forms app (`Program.cs`) that lives in the system tray and
 
 ### Claude Code Integration
 
-The `settings.json` file registers Claude Code hooks that `curl` status updates to `http://localhost:9876/` when events fire:
+The `claude-settings/settings.json` file registers Claude Code hooks that `curl` status updates to `http://localhost:9876/` when events fire:
 - `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolBatch`, `TaskCreated`, `SubagentStart` → `?status=processing`
 - `PermissionRequest` → `?status=confirm`
 - `TaskCompleted`, `Stop` → `?status=completed`
@@ -69,5 +69,6 @@ All hooks are fire-and-forget (`"async": true`) to avoid blocking Claude Code.
 | `Program.cs` | All source code (entry point, tray, HTTP, icon loading, logging, disposal) |
 | `TrafficLight.csproj` | .NET 8 Windows project — WinForms, single-file publish, embedded resources |
 | `images/*.png` | 32×32 icon source files (idle, red, yellow, green) |
-| `settings.json` | Claude Code hook configuration (reference/copy into Claude Code's settings) |
+| `claude-settings/settings.json` | Claude Code hook configuration (reference/copy into Claude Code's settings) |
+| `claude-settings/install-hooks.bat` / `.ps1` | Scripts to install hooks into Claude Code settings |
 | `README.md` | Full documentation (integration guide, testing, customization) |
