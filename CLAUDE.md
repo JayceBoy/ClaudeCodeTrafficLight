@@ -5,11 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Run
 
 ```bash
-# Publish single-file release (Windows-only, .NET 8 required)
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+# Publish single-file release (Windows-only, .NET 8+ required)
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none
 
 # Run via the published exe
-bin\Release\net8.0-windows\win-x64\publish\TrafficLight.exe
+bin\Release\net10.0-windows\win-x64\publish\TrafficLight.exe
 
 # Or build & run in one step
 dotnet run -c Release
