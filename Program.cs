@@ -20,6 +20,16 @@ namespace TrafficLight
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // 使用 Mutex 防止多开：全局命名保证同一用户只能运行一个实例
+            const string mutexName = "TrafficLight-{3A1F2B4C-8D9E-4F5A-B6C7-D8E9F0A1B2C3}";
+            using var mutex = new Mutex(true, mutexName, out bool createdNew);
+            if (!createdNew)
+            {
+                MessageBox.Show("TrafficLight 已在运行中。\n如需重启，请先在系统托盘中退出已有实例。",
+                    "TrafficLight", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             using var context = new TrafficLightContext();
             Application.Run(context);
         }
