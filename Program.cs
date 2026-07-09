@@ -34,6 +34,7 @@ namespace TrafficLight
         private bool _flashOn;                       // toggles for red flash
         private HttpListener? _httpListener;
         private bool _disposed;
+        private readonly ToolStripMenuItem _statusLightMenuItem = new("启用状态灯");
 
         private string _currentStatus = "idle";
         private DateTime _lastUpdate = DateTime.MinValue;
@@ -58,7 +59,11 @@ namespace TrafficLight
 
             var menu = new ContextMenuStrip();
             menu.Items.Add("关于", null, (_, _) => ShowAbout());
-            menu.Items.Add("启用状态灯", null, async (_, _) => await InstallClaudeCodeHooks());
+
+            _statusLightMenuItem.Click += OnStatusLightClick;
+            menu.Items.Add(_statusLightMenuItem);
+            menu.Opening += OnMenuOpening;
+
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("退出", null, (_, _) => ExitApp());
             _trayIcon.ContextMenuStrip = menu;
@@ -210,6 +215,63 @@ namespace TrafficLight
                     Buttons = { TaskDialogButton.OK },
                 });
             }
+        }
+
+        // --- check if hooks are already installed in global Claude Code config ---
+
+        private static bool IsHooksInstalled()
+        {
+            string globalFile = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".claude", "settings.json");
+
+            if (!File.Exists(globalFile)) return false;
+
+            try
+            {
+                string json = File.ReadAllText(globalFile);
+                // Quick check for our TrafficLight endpoint in the hooks
+                return json.Contains("localhost:9876");
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void ShowHooksEnabled()
+        {
+            string globalFile = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".claude", "settings.json");
+
+            TaskDialog.ShowDialog(new TaskDialogPage
+            {
+                Caption = "状态灯",
+                Heading = "已启用状态灯",
+                Text = "Claude Code 状态灯 Hook 已配置完成，无需重复安装。\n\n" +
+                       "如需查看或手动修改配置文件，请打开：\n" +
+                       globalFile,
+                Icon = TaskDialogIcon.Information,
+                Buttons = { TaskDialogButton.OK },
+            });
+        }
+
+        // --- right-click menu opening: refresh status light item text ---
+
+        private void OnMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            bool installed = IsHooksInstalled();
+            _statusLightMenuItem.Text = installed ? "已启用状态灯" : "启用状态灯";
+            _statusLightMenuItem.Checked = installed;
+        }
+
+        private async void OnStatusLightClick(object? sender, EventArgs e)
+        {
+            if (IsHooksInstalled())
+                ShowHooksEnabled();
+            else
+                await InstallClaudeCodeHooks();
         }
 
         private static string? ExtractToTemp(string resourceName, string tempFileName)
