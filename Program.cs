@@ -6,7 +6,6 @@ using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -35,6 +34,10 @@ namespace TrafficLight
         private HttpListener? _httpListener;
         private bool _disposed;
         private readonly ToolStripMenuItem _statusLightMenuItem = new("启用状态灯");
+        private static readonly byte[] _okBody = "OK"u8.ToArray();
+        private static string GlobalConfigPath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".claude", "settings.json");
 
         private string _currentStatus = "idle";
         private DateTime _lastUpdate = DateTime.MinValue;
@@ -78,7 +81,7 @@ namespace TrafficLight
 
             ThreadPool.QueueUserWorkItem(_ => StartHttpListener());
 
-            DebugLog("TrafficLight started.");
+            // TrafficLight started.
         }
 
         // --- SetStatus (HTTP thread) ---
@@ -93,7 +96,6 @@ namespace TrafficLight
             {
                 _currentStatus = status;
                 _lastUpdate = DateTime.UtcNow;
-                DebugLog($"SetStatus => '{_currentStatus}'");
             }
         }
 
@@ -169,7 +171,6 @@ namespace TrafficLight
             }
             catch (Exception ex)
             {
-                DebugLog($"Install hooks failed: {ex.Message}");
                 TaskDialog.ShowDialog(new TaskDialogPage
                 {
                     Caption = "配置失败",
@@ -221,16 +222,11 @@ namespace TrafficLight
 
         private static bool IsHooksInstalled()
         {
-            string globalFile = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".claude", "settings.json");
-
-            if (!File.Exists(globalFile)) return false;
+            if (!File.Exists(GlobalConfigPath)) return false;
 
             try
             {
-                string json = File.ReadAllText(globalFile);
-                // Quick check for our TrafficLight endpoint in the hooks
+                string json = File.ReadAllText(GlobalConfigPath);
                 return json.Contains("localhost:9876");
             }
             catch
@@ -241,17 +237,13 @@ namespace TrafficLight
 
         private static void ShowHooksEnabled()
         {
-            string globalFile = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".claude", "settings.json");
-
             TaskDialog.ShowDialog(new TaskDialogPage
             {
                 Caption = "状态灯",
                 Heading = "已启用状态灯",
                 Text = "Claude Code 状态灯 Hook 已配置完成，无需重复安装。\n\n" +
                        "如需查看或手动修改配置文件，请打开：\n" +
-                       globalFile,
+                       GlobalConfigPath,
                 Icon = TaskDialogIcon.Information,
                 Buttons = { TaskDialogButton.OK },
             });
@@ -345,7 +337,6 @@ namespace TrafficLight
                     _currentStatus = "idle";
                     _lastUpdate = DateTime.UtcNow;
                 }
-                DebugLog("Timeout (green 30s) → idle");
                 status = "idle";
             }
 
@@ -386,7 +377,6 @@ namespace TrafficLight
             if (idx == _lastIconIdx) return;
             _lastIconIdx = idx;
 
-            DebugLog($"Icon set to '{text}'");
             _trayIcon.Visible = false;
             _trayIcon.Icon = icon;
             _trayIcon.Text = text;
@@ -400,7 +390,6 @@ namespace TrafficLight
             {
                 // Just entered red — use full toggle to force the transition
                 _lastIconIdx = idx;
-                DebugLog("Icon → red (flash start)");
                 _trayIcon.Visible = false;
                 _trayIcon.Icon = icon;
                 _trayIcon.Text = text;
@@ -502,7 +491,6 @@ namespace TrafficLight
                 _httpListener = new HttpListener();
                 _httpListener.Prefixes.Add("http://localhost:9876/");
                 _httpListener.Start();
-                DebugLog("HTTP listener started on port 9876");
 
                 while (_httpListener.IsListening)
                 {
@@ -510,39 +498,19 @@ namespace TrafficLight
                     {
                         var ctx = _httpListener.GetContext();
                         string status = ctx.Request.QueryString["status"] ?? "";
-                        DebugLog($"HTTP request: status='{status}'");
                         SetStatus(status);
 
-                        byte[] body = Encoding.UTF8.GetBytes("OK");
                         ctx.Response.ContentType = "text/plain";
-                        ctx.Response.ContentLength64 = body.Length;
-                        ctx.Response.OutputStream.Write(body, 0, body.Length);
+                        ctx.Response.ContentLength64 = _okBody.Length;
+                        ctx.Response.OutputStream.Write(_okBody, 0, _okBody.Length);
                         ctx.Response.OutputStream.Close();
                     }
-                    catch (HttpListenerException ex)
+                    catch (HttpListenerException)
                     {
-                        DebugLog($"HTTP listener error: {ex.Message}");
                         break;
                     }
                     catch (ObjectDisposedException) { break; }
                 }
-            }
-            catch (Exception ex)
-            {
-                DebugLog($"HTTP listener failed: {ex.Message}");
-            }
-        }
-
-        // --- debug logging ---
-
-        private static void DebugLog(string message)
-        {
-            try
-            {
-                var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
-                File.AppendAllText(
-                    Path.Combine(Path.GetTempPath(), "TrafficLight-debug.log"),
-                    line + Environment.NewLine);
             }
             catch { }
         }
